@@ -73,7 +73,7 @@ body { font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--
 }
 
 /* ── SEAT ── */
-.seat { position:absolute; width:var(--cw); height:var(--ch); background:var(--panel); border:1px solid var(--bd); border-radius:7px; cursor:grab; overflow:hidden; display:flex; flex-direction:column; justify-content:center; padding:4px 7px 4px 9px; transition:box-shadow .12s, border-color .12s; }
+.seat { position:absolute; width:var(--cw); height:var(--ch); background:var(--panel); border:1px solid var(--bd); border-radius:7px; cursor:default; overflow:hidden; display:flex; flex-direction:column; justify-content:center; padding:4px 7px 4px 9px; transition:box-shadow .12s, border-color .12s; }
 .seat:hover { border-color:var(--bd2); box-shadow:0 2px 8px rgba(0,0,0,.1); z-index:5; }
 .seat .bar { position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:7px 0 0 7px; }
 .seat .zh { font-size:10px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -84,8 +84,8 @@ body { font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--
 .seat:hover .ebtn { display:flex; }
 .seat .ebtn:hover { background:var(--acc); color:#fff; border-color:var(--acc); }
 
-.seat.dragging { opacity:.25; transform:scale(.93); }
-.seat.drag-over { border-color:var(--acc)!important; box-shadow:0 0 0 2px rgba(37,99,235,.25)!important; z-index:20; }
+
+
 .seat.hl { border-color:#f59e0b!important; box-shadow:0 0 0 2px rgba(245,158,11,.2)!important; z-index:5; }
 .seat.dim { opacity:.13; }
 
@@ -96,7 +96,7 @@ body { font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--
 .eslot:hover .el { color:var(--acc); opacity:.8; }
 .eslot .ep { font-size:14px; color:var(--bd); line-height:1; }
 .eslot .el { font-size:7.5px; color:var(--tx2); opacity:.55; }
-.eslot.drag-over { border-color:var(--acc); background:rgba(37,99,235,.04); }
+
 
 /* ── PILLAR ── */
 .pillar { position:absolute; width:var(--cw); height:var(--ch); background:#e6eaf1; border:2px dashed #c0c9da; border-radius:6px; display:flex; align-items:center; justify-content:center; }
@@ -157,10 +157,8 @@ body { font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--
     <input id="srch" placeholder="搜尋姓名、分機、英文姓名…" oninput="doSearch(this.value)">
   </div>
   <div class="btns">
-    <button class="btn" id="undoB" onclick="doUndo()" disabled>↩ 復原</button>
-    <button class="btn" id="cloudBtn" onclick="saveToGitHub()" style="border-color:#2563eb;color:#2563eb">☁ 儲存</button>
-    <button class="btn" onclick="clearToken()" title="重設 GitHub Token" style="font-size:10px;padding:4px 7px;color:var(--tx2)">🔑</button>
-    <button class="btn" onclick="doReset()" style="border-color:#fca5a5;color:#dc2626">⟳ 重置</button>
+    
+    
     <div class="zrow">縮放<input type="range" id="zr" min="30" max="120" value="55" oninput="setZoom(this.value)"><span id="zl">55%</span></div>
     <div class="badge" id="bdg">—</div>
   </div>
@@ -316,55 +314,6 @@ const ORIG_10F = {"0_2":{"zh":"林韋廷 #29963","en":"Willie1_Lin","dept":"雲�
 // ═══════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════
-// PASSWORD PROTECTION
-// ═══════════════════════════════════════════════════════════
-const PW_HASH = 'e276bd9146cb40de608c1deac80da19f316853ca8af2b4ba9e0953d17dd9a00a'; // SHA-256 of "ghostbaby" — NOT ghostbaby itself
-
-async function sha256(str){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-async function checkPassword(){
-  const stored = sessionStorage.getItem('aocc_auth');
-  if(stored === PW_HASH) return true;
-
-  // Show password overlay
-  const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(238,241,247,0.97);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:Noto Sans TC,sans-serif;';
-  ov.innerHTML = `
-    <div style="background:#fff;border:1px solid #d4dae8;border-radius:14px;padding:32px 28px;width:320px;box-shadow:0 14px 40px rgba(0,0,0,.12);text-align:center;">
-      <div style="font-size:22px;margin-bottom:6px;">🔐</div>
-      <div style="font-size:15px;font-weight:700;color:#1a2236;margin-bottom:4px;">AOCC 座位表</div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:20px;">管理員請輸入密碼</div>
-      <input id="pwInput" type="password" placeholder="輸入密碼…"
-        style="width:100%;border:1px solid #d4dae8;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;margin-bottom:12px;font-family:inherit;"
-        onkeydown="if(event.key==='Enter') document.getElementById('pwBtn').click()">
-      <button id="pwBtn" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-family:inherit;cursor:pointer;font-weight:600;">進入</button>
-      <div id="pwErr" style="color:#dc2626;font-size:11px;margin-top:8px;display:none;">密碼錯誤，跳轉至唯讀版…</div>
-    </div>
-  `;
-  document.body.appendChild(ov);
-  document.getElementById('pwInput').focus();
-
-  return new Promise(resolve => {
-    document.getElementById('pwBtn').onclick = async () => {
-      const val = document.getElementById('pwInput').value;
-      const hash = await sha256(val);
-      if(hash === PW_HASH){
-        sessionStorage.setItem('aocc_auth', PW_HASH);
-        document.body.removeChild(ov);
-        resolve(true);
-      } else {
-        document.getElementById('pwErr').style.display='block';
-        setTimeout(()=>{ window.location.href='view.html'; }, 1800);
-        resolve(false);
-      }
-    };
-  });
-}
-
 let floor = '6F';
 let states = {};
 let undoStack = {};
@@ -547,11 +496,7 @@ function mkSeat(cv,key,x,y,p,fl,w,h){
   const bg=DB[p.dept]||'#f8fafc';
   el.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${isNew?'#fafbfe':bg};z-index:1;`;
   el.innerHTML=`<div class="bar" style="background:${color}"></div><div class="zh">${p.zh||p.en}</div>${p.zh&&p.en?`<div class="en">${p.en}</div>`:''}<div class="ebtn" onclick="openEdit('${key}','${fl}',event)">✎</div>`;
-  el.draggable=true;
-  el.addEventListener('dragstart',onDS); el.addEventListener('dragend',onDE);
   el.addEventListener('mouseenter',showTip); el.addEventListener('mouseleave',hideTip);
-  el.addEventListener('dragover',onDO); el.addEventListener('dragleave',onDL);
-  el.addEventListener('drop',onDrop);
   cv.appendChild(el);
 }
 
@@ -562,7 +507,7 @@ function mkEmpty(cv,key,x,y,fl,w,h){
   el.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px;z-index:1;cursor:pointer;`;
   el.innerHTML='<div class="ep">+</div><div class="el">新增</div>';
   el.addEventListener('click', ()=>openEdit(key,fl,{stopPropagation:()=>{},preventDefault:()=>{}}));
-  el.addEventListener('dragover',onDO); el.addEventListener('dragleave',onDL); el.addEventListener('drop',onDrop);
+
   cv.appendChild(el);
 }
 
@@ -662,91 +607,55 @@ function setZoom(v){ zoom=+v; document.getElementById('zl').textContent=v+'%'; d
 // ═══════════════════════════════════════════════════════════
 let toastT;
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2200); }
-function save(){ try{localStorage.setItem('aocc_edit',JSON.stringify(states));}catch(e){} }
-function load(){ try{const s=localStorage.getItem('aocc_edit'); if(s) states=JSON.parse(s);}catch(e){} }
+function save(){ try{localStorage.setItem('aocc_readonly_view',JSON.stringify(states));}catch(e){} }
+function load(){ try{const s=localStorage.getItem('aocc_readonly_view'); if(s) states=JSON.parse(s);}catch(e){} }
 document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!document.getElementById('editOv').classList.contains('open')){e.preventDefault();doUndo();} if(e.key==='Escape')document.getElementById('editOv').classList.remove('open'); });
 
 // ═══════════════════════════════════════════════════════════
-// GITHUB API SYNC
+// LOAD FROM GITHUB (唯讀版)
 // ═══════════════════════════════════════════════════════════
-const GH_REPO = 'starii0808/AOCCSEAT';
-const GH_FILE = 'seats-data.json';
-const GH_BRANCH = 'main';
-const GH_API = `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
+const GH_RAW = 'https://raw.githubusercontent.com/starii0808/AOCCSEAT/main/seats-data.json';
 
-function getToken(){
-  return localStorage.getItem('aocc_gh_token');
-}
-function clearToken(){
-  localStorage.removeItem('aocc_gh_token');
-  toast('🔑 Token 已清除，下次儲存時會重新要求');
-}
-
-function ghDataPayload(){
-  return {
-    states,
-    pinnedSlots:{
-      '6F':[...pinnedSlots['6F']],
-      '4F':[...pinnedSlots['4F']],
-      '10F':[...pinnedSlots['10F']]
-    },
-    savedAt: new Date().toISOString()
-  };
-}
-
-async function saveToGitHub(){
-  let token = getToken();
-  if(!token){
-    token = prompt('請輸入 GitHub Personal Access Token\n（只會存在本機瀏覽器，不會上傳到 GitHub）');
-    if(!token) return;
-    localStorage.setItem('aocc_gh_token', token);
-  }
-  const btn = document.getElementById('cloudBtn');
-  btn.textContent = '⏳ 儲存中…'; btn.disabled = true;
-  try{
-    // Get current SHA
-    const getRes = await fetch(GH_API+'?ref='+GH_BRANCH, {
-      headers:{ Authorization:'token '+token, Accept:'application/vnd.github+json' }
-    });
-    let sha = '';
-    if(getRes.ok){ const d=await getRes.json(); sha=d.sha||''; }
-
-    // Encode content
-    const json = JSON.stringify(ghDataPayload(), null, 2);
-    const content = btoa(unescape(encodeURIComponent(json)));
-
-    // PUT to GitHub
-    const putRes = await fetch(GH_API, {
-      method:'PUT',
-      headers:{ Authorization:'token '+token, Accept:'application/vnd.github+json', 'Content-Type':'application/json' },
-      body: JSON.stringify({ message:'[座位表] 更新座位資料', content, sha, branch:GH_BRANCH })
-    });
-    if(putRes.ok){
-      toast('☁ 已成功儲存到 GitHub！唯讀版將自動更新');
-    } else {
-      const err = await putRes.json();
-      if(err.message && err.message.includes('Bad credentials')){
-        localStorage.removeItem('aocc_gh_token');
-        toast('❌ Token 無效，已清除，請重新輸入');
-      } else {
-        toast('❌ 儲存失敗：'+err.message);
+async function loadFromGitHub(){
+  try {
+    const res = await fetch(GH_RAW + '?t=' + Date.now());
+    if(!res.ok) return false;
+    const data = await res.json();
+    if(data && data.states){
+      states = data.states;
+      if(data.pinnedSlots){
+        pinnedSlots['6F'] = new Set(data.pinnedSlots['6F']||[]);
+        pinnedSlots['4F'] = new Set(data.pinnedSlots['4F']||[]);
+        pinnedSlots['10F'] = new Set(data.pinnedSlots['10F']||[]);
       }
+      return true;
     }
-  } catch(e){
-    toast('❌ 網路錯誤：'+e.message);
-  } finally {
-    btn.textContent='☁ 儲存'; btn.disabled=false;
-  }
+  } catch(e){ console.warn('GitHub load failed:', e); }
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
-checkPassword().then(ok => {
-  if(!ok) return;
-  initStates(); load(); render(); setZoom(zoom);
+initStates();
+const savedAt = document.createElement('div');
+savedAt.style.cssText = 'position:fixed;bottom:10px;right:14px;font-size:10px;color:#94a3b8;z-index:999;';
+document.body.appendChild(savedAt);
+
+loadFromGitHub().then(ok => {
+  if(ok){
+    // Try to show saved time from data
+    const raw = fetch(GH_RAW+'?t='+Date.now())
+      .then(r=>r.json())
+      .then(d=>{ if(d.savedAt) savedAt.textContent='資料更新：'+new Date(d.savedAt).toLocaleString('zh-TW'); })
+      .catch(()=>{});
+  } else {
+    savedAt.textContent = '⚠ 無法讀取雲端資料，顯示預設版本';
+  }
+  render();
+  setZoom(zoom);
 });
-setInterval(save,15000); window.addEventListener('beforeunload',save);
+
 </script>
 </body>
 </html>
