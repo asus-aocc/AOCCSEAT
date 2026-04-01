@@ -171,6 +171,7 @@ body { font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--
     <button class="btn" id="undoB" onclick="doUndo()" disabled>↩ 復原</button>
     <button class="btn" id="cloudBtn" onclick="saveToGitHub()" style="border-color:#2563eb;color:#2563eb;font-weight:600;">☁ 儲存</button>
     <button class="btn" onclick="clearToken()" title="重設 GitHub Token" style="padding:4px 8px;">🔑</button>
+    <button class="btn" onclick="showDebug()" style="padding:4px 8px;font-size:10px;">偵錯</button>
     <button class="btn" onclick="doReset()" style="border-color:#fca5a5;color:#dc2626">⟳ 重置</button>
     <div class="zrow">縮放<input type="range" id="zr" min="30" max="120" value="55" oninput="setZoom(this.value)"><span id="zl">55%</span></div>
     <div class="badge" id="bdg">—</div>
@@ -684,6 +685,7 @@ const GH_REPO=_owner+'/AOCCSEAT', GH_FILE='seats-data.json', GH_BRANCH='main';
 const GH_API=`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
 
 function clearToken(){ localStorage.removeItem('aocc_gh_token'); toast('🔑 Token 已清除'); }
+function showDebug(){ alert('Repo: '+GH_REPO+'\nURL: '+window.location.href+'\nHostname: '+window.location.hostname); }
 
 async function saveToGitHub(){
   let token=localStorage.getItem('aocc_gh_token');
@@ -709,7 +711,11 @@ async function saveToGitHub(){
       if(err.message&&err.message.includes('credentials')){ localStorage.removeItem('aocc_gh_token'); toast('❌ Token 無效，已清除'); }
       else { toast('❌ 失敗：'+err.message); }
     }
-  }catch(e){ toast('❌ 錯誤：'+e.message); }
+  }catch(e){
+    const url='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE;
+    toast('❌ 錯誤：'+e.message+' | URL: '+url.slice(0,60));
+    console.error('Fetch error:', e, 'URL:', url, 'Repo:', GH_REPO);
+  }
   finally{ btn.textContent='☁ 儲存'; btn.disabled=false; }
 }
 </script>
