@@ -621,18 +621,11 @@ const GH_RAW = 'https://raw.githubusercontent.com/'+_vowner+'/AOCCSEAT/main/seat
 
 async function loadFromGitHub(){
   try{
-    // Try to find gist ID: first from repo file, then localStorage
     const owner = window.location.hostname.replace('.github.io','') || 'asus-aocc';
-    let gistId = null;
-
-    // Try repo file first
-    try{
-      const idRes = await fetch('https://raw.githubusercontent.com/'+owner+'/AOCCSEAT/main/gist-id.txt?t='+Date.now());
-      if(idRes.ok) gistId = (await idRes.text()).trim();
-    } catch(e){}
-
-    // Fallback to localStorage (same browser as editor)
-    if(!gistId) gistId = localStorage.getItem('aocc_gist_id') || localStorage.getItem('aocc_gist_public');
+    // Use hardcoded gist ID if available (injected after first save)
+    let gistId = (typeof HARDCODED_GIST_ID !== 'undefined' && HARDCODED_GIST_ID)
+      ? HARDCODED_GIST_ID
+      : (localStorage.getItem('aocc_gist_id') || localStorage.getItem('aocc_gist_public') || null);
 
     if(gistId){
       const gistRes = await fetch('https://api.github.com/gists/'+gistId+'?t='+Date.now());

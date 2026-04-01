@@ -170,7 +170,7 @@ body { font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--
   <div class="btns">
     <button class="btn" id="undoB" onclick="doUndo()" disabled>↩ 復原</button>
     <button class="btn" id="cloudBtn" onclick="saveToGitHub()" style="border-color:#2563eb;color:#2563eb;font-weight:600;">☁ 儲存</button>
-    <button class="btn" onclick="clearToken()" title="重設 GitHub Token" style="padding:4px 8px;">🔑</button>
+    <button class="btn" onclick="clearToken()" title="清除 Token 與 Gist ID，重新設定" style="padding:4px 8px;">🔑</button>
     <button class="btn" onclick="showDebug()" style="padding:4px 8px;font-size:10px;">偵錯</button>
     <button class="btn" onclick="doReset()" style="border-color:#fca5a5;color:#dc2626">⟳ 重置</button>
     <div class="zrow">縮放<input type="range" id="zr" min="30" max="120" value="55" oninput="setZoom(this.value)"><span id="zl">55%</span></div>
@@ -734,8 +734,8 @@ async function saveToGitHub(){
       gistId = data.id;
       localStorage.setItem('aocc_gist_id', gistId);
       localStorage.setItem('aocc_gist_public', gistId);
-      toast('☁ 已儲存！');
-      await saveGistIdToRepo(token, gistId);
+      toast('☁ 已儲存！正在產生 view.html…');
+      await generateAndDownloadView(gistId);
     } else {
       const err = await res.json();
       if(err.message && err.message.includes('Not Found') && gistId){
@@ -755,6 +755,32 @@ async function saveToGitHub(){
     console.error(e);
   } finally {
     btn.textContent='☁ 儲存'; btn.disabled=false;
+  }
+}
+
+// Generate updated view.html with hardcoded gist ID and trigger download
+async function generateAndDownloadView(gistId){
+  try{
+    // Fetch current view.html from the site
+    const res = await fetch('./view.html?t='+Date.now());
+    if(!res.ok){ toast('☁ 已儲存！（請手動更新 view.html）'); return; }
+    let viewContent = await res.text();
+    // Replace or inject the gist ID
+    const marker = "const _vowner = window.location.hostname.includes('github.io')";
+    const gistLine = "const HARDCODED_GIST_ID = '"+gistId+"'; // auto-injected\n    "+marker;
+    viewContent = viewContent.includes('HARDCODED_GIST_ID')
+      ? viewContent.replace(/const HARDCODED_GIST_ID = '[^']*';/, "const HARDCODED_GIST_ID = '"+gistId+"';")
+      : viewContent.replace(marker, gistLine);
+    // Trigger download
+    const blob = new Blob([viewContent], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'view.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('☁ 已儲存！請將下載的 view.html 上傳到 GitHub');
+  } catch(e){
+    toast('☁ 已儲存！Gist ID: '+gistId.slice(0,12)+'…');
   }
 }
 
