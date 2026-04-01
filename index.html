@@ -733,17 +733,19 @@ async function saveToGitHub(){
       const data = await res.json();
       gistId = data.id;
       localStorage.setItem('aocc_gist_id', gistId);
-      // Save gist ID to a public place so view.html can find it
-      // Store in localStorage key that view.html reads
       localStorage.setItem('aocc_gist_public', gistId);
-      toast('☁ 已儲存！Gist ID: '+gistId.slice(0,8)+'…');
-      // Also try to update index in repo
+      toast('☁ 已儲存！');
       await saveGistIdToRepo(token, gistId);
     } else {
       const err = await res.json();
-      if(err.message && err.message.includes('credentials')){
+      if(err.message && err.message.includes('Not Found') && gistId){
+        // Gist not found — clear ID and create new one
+        localStorage.removeItem('aocc_gist_id');
+        toast('⚠ Gist 已失效，重新建立中…');
+        setTimeout(()=>saveToGitHub(), 500);
+      } else if(err.message && err.message.includes('credentials')){
         localStorage.removeItem('aocc_gh_token');
-        toast('❌ Token 無效，已清除');
+        toast('❌ Token 無效，已清除，請重新輸入');
       } else {
         toast('❌ 失敗：'+err.message);
       }
