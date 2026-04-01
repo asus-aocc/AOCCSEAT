@@ -676,7 +676,11 @@ if(sessionStorage.getItem('aocc_auth') === PW_HASH){
 }
 
 // ═══ GITHUB SAVE ═══
-const GH_REPO='starii0808/AOCCSEAT', GH_FILE='seats-data.json', GH_BRANCH='main';
+// Auto-detect repo owner from current URL
+const _owner = window.location.hostname.includes('github.io')
+  ? window.location.hostname.replace('.github.io','')
+  : 'starii0808';
+const GH_REPO=_owner+'/AOCCSEAT', GH_FILE='seats-data.json', GH_BRANCH='main';
 const GH_API=`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
 
 function clearToken(){ localStorage.removeItem('aocc_gh_token'); toast('🔑 Token 已清除'); }

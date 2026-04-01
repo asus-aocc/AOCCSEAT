@@ -614,7 +614,10 @@ document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='z'&
 // ═══════════════════════════════════════════════════════════
 // LOAD FROM GITHUB (唯讀版)
 // ═══════════════════════════════════════════════════════════
-const GH_RAW = 'https://raw.githubusercontent.com/starii0808/AOCCSEAT/main/seats-data.json';
+const _vowner = window.location.hostname.includes('github.io')
+  ? window.location.hostname.replace('.github.io','')
+  : 'starii0808';
+const GH_RAW = 'https://raw.githubusercontent.com/'+_vowner+'/AOCCSEAT/main/seats-data.json';
 
 async function loadFromGitHub(){
   try {
