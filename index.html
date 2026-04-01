@@ -707,6 +707,7 @@ async function saveToGitHub(){
 
   try{
     let gistId = localStorage.getItem('aocc_gist_id');
+    const isFirstSave = !gistId;
     let res;
 
     if(gistId){
@@ -734,8 +735,12 @@ async function saveToGitHub(){
       gistId = data.id;
       localStorage.setItem('aocc_gist_id', gistId);
       localStorage.setItem('aocc_gist_public', gistId);
-      toast('☁ 已儲存！正在產生 view.html…');
-      await generateAndDownloadView(gistId);
+      if(isFirstSave){
+        toast('☁ 已儲存！正在產生 view.html…');
+        await generateAndDownloadView(gistId);
+      } else {
+        toast('☁ 已儲存！');
+      }
     } else {
       const err = await res.json();
       if(err.message && err.message.includes('Not Found') && gistId){
