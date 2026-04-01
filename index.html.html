@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AOCC 座位表</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Mono:wght@700&display=swap');
+
+:root {
+  --bg:    #eef1f7;
+  --panel: #ffffff;
+  --p2:    #f5f7fa;
+  --bd:    #d4dae8;
+  --bd2:   #aab0c4;
+  --tx:    #1a2236;
+  --tx2:   #64748b;
+  --acc:   #2563eb;
+
+  --c1:#16a34a; --c2:#c026d3; --c3:#2563eb;
+  --c4:#ea580c; --c5:#7c3aed; --c6:#ca8a04;
+  --c7:#0891b2; --c8:#94a3b8;
+
+  --cw: 90px;
+  --ch: 60px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--tx); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+/* ── TOP BAR ── */
+.top { background:var(--panel); border-bottom:1px solid var(--bd); padding:7px 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex-shrink:0; }
+.logo { font-family:'Space Mono',monospace; font-size:13px; color:var(--acc); letter-spacing:2px; font-weight:700; }
+.ftabs { display:flex; gap:3px; }
+.ftab { padding:4px 14px; border-radius:6px; border:1px solid var(--bd); background:var(--p2); color:var(--tx2); cursor:pointer; font-family:'Space Mono',monospace; font-size:11px; font-weight:700; transition:all .12s; }
+.ftab.on { background:var(--acc); border-color:var(--acc); color:#fff; }
+.ftab:hover:not(.on) { border-color:var(--bd2); color:var(--tx); }
+.sbox { position:relative; flex:1; min-width:150px; max-width:280px; }
+.sbox svg { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--tx2); pointer-events:none; }
+.sbox input { width:100%; background:var(--p2); border:1px solid var(--bd); border-radius:6px; padding:5px 9px 5px 28px; font-family:'Noto Sans TC',sans-serif; font-size:11px; color:var(--tx); outline:none; }
+.sbox input:focus { border-color:var(--acc); }
+.sbox input::placeholder { color:var(--tx2); }
+.btns { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+.btn { padding:4px 11px; border:1px solid var(--bd); border-radius:5px; background:var(--p2); color:var(--tx); font-size:11px; font-family:'Noto Sans TC',sans-serif; cursor:pointer; white-space:nowrap; transition:all .12s; }
+.btn:hover { background:var(--bg); border-color:var(--bd2); }
+.btn:disabled { opacity:.3; cursor:not-allowed; }
+.zrow { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--tx2); }
+.zrow input[type=range] { width:70px; accent-color:var(--acc); }
+.badge { background:var(--p2); border:1px solid var(--bd); border-radius:4px; padding:3px 8px; font-size:10px; color:var(--tx2); }
+
+/* ── LEGEND ── */
+.legbar { background:var(--panel); border-bottom:1px solid var(--bd); padding:4px 14px; display:flex; gap:5px; flex-wrap:wrap; align-items:center; flex-shrink:0; }
+.ll { font-size:10px; color:var(--tx2); }
+.lchip { display:flex; align-items:center; gap:3px; padding:2px 8px; border-radius:4px; border:1px solid transparent; background:var(--p2); cursor:pointer; font-size:10px; white-space:nowrap; transition:all .1s; }
+.lchip:hover { border-color:var(--bd); }
+.lchip.on { border-color:var(--bd2); background:var(--bg); }
+.lchip .dot { width:7px; height:7px; border-radius:50%; }
+.lchip .n { color:var(--tx2); }
+
+/* ── CANVAS ── */
+#outer { flex:1; overflow:auto; padding:18px 24px 18px 100px; }
+#wrap  { transform-origin:top left; }
+#cv    { position:relative; }
+
+
+
+/* ── AISLE DIVIDER within row ── */
+.row-aisle {
+  position:absolute;
+  width:4px; 
+  border-radius:2px;
+  background: repeating-linear-gradient(to bottom, var(--bd2) 0px, var(--bd2) 4px, transparent 4px, transparent 8px);
+  opacity: 0.5;
+}
+
+/* ── SEAT ── */
+.seat { position:absolute; width:var(--cw); height:var(--ch); background:var(--panel); border:1px solid var(--bd); border-radius:7px; cursor:grab; overflow:hidden; display:flex; flex-direction:column; justify-content:center; padding:4px 7px 4px 9px; transition:box-shadow .12s, border-color .12s; }
+.seat:hover { border-color:var(--bd2); box-shadow:0 2px 8px rgba(0,0,0,.1); z-index:5; }
+.seat .bar { position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:7px 0 0 7px; }
+.seat .zh { font-size:10px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.seat .en { font-size:8.5px; color:var(--tx2); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.seat.new-hire { background:#fafbfe; border-style:dashed; border-color:var(--bd2); }
+.seat.new-hire .zh { color:var(--tx2); font-style:italic; }
+.seat .ebtn { position:absolute; top:2px; right:2px; width:14px; height:14px; background:var(--p2); border:1px solid var(--bd); border-radius:3px; cursor:pointer; font-size:8px; color:var(--tx2); display:none; align-items:center; justify-content:center; }
+.seat:hover .ebtn { display:flex; }
+.seat .ebtn:hover { background:var(--acc); color:#fff; border-color:var(--acc); }
+
+.seat.dragging { opacity:.25; transform:scale(.93); }
+.seat.drag-over { border-color:var(--acc)!important; box-shadow:0 0 0 2px rgba(37,99,235,.25)!important; z-index:20; }
+.seat.hl { border-color:#f59e0b!important; box-shadow:0 0 0 2px rgba(245,158,11,.2)!important; z-index:5; }
+.seat.dim { opacity:.13; }
+
+/* ── EMPTY SLOT ── */
+.eslot { position:absolute; width:var(--cw); height:var(--ch); border-radius:7px; border:1.5px dashed var(--bd); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; transition:border-color .12s, background .12s; }
+.eslot:hover { border-color:var(--acc); background:rgba(37,99,235,.05); }
+.eslot:hover .ep { color:var(--acc); }
+.eslot:hover .el { color:var(--acc); opacity:.8; }
+.eslot .ep { font-size:14px; color:var(--bd); line-height:1; }
+.eslot .el { font-size:7.5px; color:var(--tx2); opacity:.55; }
+.eslot.drag-over { border-color:var(--acc); background:rgba(37,99,235,.04); }
+
+/* ── PILLAR ── */
+.pillar { position:absolute; width:var(--cw); height:var(--ch); background:#e6eaf1; border:2px dashed #c0c9da; border-radius:6px; display:flex; align-items:center; justify-content:center; }
+.pillar span { font-size:9px; color:#a0aab6; letter-spacing:2px; writing-mode:vertical-rl; }
+
+/* ── STRUCTURAL ── */
+.aisle-band { position:absolute; left:0; right:0; background:var(--bg); border-top:1px dashed var(--bd); border-bottom:1px dashed var(--bd); display:flex; align-items:center; padding-left:12px; }
+.aisle-band span { font-size:9px; color:var(--tx2); letter-spacing:4px; opacity:.7; font-family:'Space Mono',monospace; }
+
+/* ── MODAL ── */
+.ov { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:200; display:none; align-items:center; justify-content:center; }
+.ov.open { display:flex; }
+.modal { background:var(--panel); border:1px solid var(--bd2); border-radius:12px; padding:20px; width:350px; max-width:95vw; box-shadow:0 14px 40px rgba(0,0,0,.18); }
+.modal h3 { font-size:13px; font-weight:700; margin-bottom:12px; }
+.mf { margin-bottom:10px; }
+.ml { font-size:10px; color:var(--tx2); margin-bottom:3px; }
+.mi { width:100%; background:var(--p2); border:1px solid var(--bd); border-radius:6px; padding:6px 8px; font-family:'Noto Sans TC',sans-serif; font-size:12px; color:var(--tx); outline:none; }
+.mi:focus { border-color:var(--acc); }
+.dcs { display:flex; flex-wrap:wrap; gap:4px; margin-top:3px; }
+.dc { padding:3px 9px; border-radius:4px; border:1.5px solid var(--bd); background:var(--p2); cursor:pointer; font-size:10px; display:flex; align-items:center; gap:4px; transition:all .1s; }
+.dc:hover { border-color:var(--bd2); }
+.dc.sel { border-color:var(--acc); background:#eff6ff; }
+.dc .dd { width:7px; height:7px; border-radius:50%; }
+.mas { display:flex; justify-content:flex-end; gap:6px; margin-top:14px; }
+.mb { padding:6px 14px; border-radius:5px; border:1px solid var(--bd); background:var(--p2); color:var(--tx); font-size:11px; cursor:pointer; font-family:'Noto Sans TC',sans-serif; transition:all .1s; }
+.mb:hover { background:var(--bg); }
+.mb.prim { background:var(--acc); border-color:var(--acc); color:#fff; }
+.mb.prim:hover { background:#1d4ed8; }
+.mb.del { border-color:#fca5a5; color:#dc2626; }
+.mb.del:hover { background:#fef2f2; }
+
+/* ── TOOLTIP ── */
+.tip { position:fixed; background:#1a2236; border-radius:8px; padding:7px 11px; font-size:11px; color:#e2e8f0; pointer-events:none; z-index:300; display:none; max-width:200px; box-shadow:0 4px 12px rgba(0,0,0,.25); }
+.tip .tz { font-weight:600; font-size:12px; }
+.tip .te { color:#94a3b8; font-size:10px; margin-top:1px; }
+.tip .td { font-size:9px; padding:2px 6px; border-radius:3px; margin-top:4px; display:inline-block; }
+
+/* ── TOAST ── */
+#toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(50px); background:#1a2236; color:#e2e8f0; padding:8px 16px; border-radius:8px; font-size:11px; transition:transform .25s; z-index:400; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,.25); }
+#toast.show { transform:translateX(-50%) translateY(0); }
+
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--bd); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="logo">AOCC</div>
+  <div class="ftabs">
+    <div class="ftab on" onclick="switchFloor('6F',this)">6F</div>
+    <div class="ftab" onclick="switchFloor('4F',this)">4F</div>
+    <div class="ftab" onclick="switchFloor('10F',this)">10F</div>
+  </div>
+  <div class="sbox">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="srch" placeholder="搜尋姓名、分機、英文姓名…" oninput="doSearch(this.value)">
+  </div>
+  <div class="btns">
+    <button class="btn" id="undoB" onclick="doUndo()" disabled>↩ 復原</button>
+    <button class="btn" onclick="doReset()" style="border-color:#fca5a5;color:#dc2626">⟳ 重置</button>
+    <div class="zrow">縮放<input type="range" id="zr" min="30" max="120" value="55" oninput="setZoom(this.value)"><span id="zl">55%</span></div>
+    <div class="badge" id="bdg">—</div>
+  </div>
+</div>
+
+<div class="legbar" id="legbar"><span class="ll">部門：</span></div>
+<div id="outer"><div id="wrap"><div id="cv"></div></div></div>
+
+<div class="ov" id="editOv" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>✏️ 編輯座位</h3>
+    <div class="mf"><div class="ml">中文姓名（含分機）</div><input class="mi" id="mZh" placeholder="例：王小明 #12345"></div>
+    <div class="mf"><div class="ml">英文姓名</div><input class="mi" id="mEn" placeholder="例：MingW_Wang"></div>
+    <div class="mf"><div class="ml">部門</div><div class="dcs" id="dcs"></div></div>
+    <div class="mas">
+      <button class="mb del" onclick="clearSlot()">清空</button>
+      <button class="mb" onclick="closeModal()">取消</button>
+      <button class="mb prim" onclick="saveModal()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DEPT CONFIG
+// ═══════════════════════════════════════════════════════════
+const DEPTS = [
+  {k:'網路服務開發處',color:'#16a34a',bg:'#f0fdf4'},
+  {k:'雲端服務開發部',color:'#c026d3',bg:'#fdf4ff'},
+  {k:'資料科學分析部',color:'#2563eb',bg:'#eff6ff'},
+  {k:'電商平台開發處',color:'#ea580c',bg:'#fff7ed'},
+  {k:'電商應用發展暨整合服務部',color:'#7c3aed',bg:'#f5f3ff'},
+  {k:'軟體專案管理部',color:'#ca8a04',bg:'#fefce8'},
+  {k:'遠距健康',color:'#0891b2',bg:'#ecfeff'},
+  {k:'未指定',color:'#94a3b8',bg:'#f8fafc'},
+];
+const DC = Object.fromEntries(DEPTS.map(d=>[d.k,d.color]));
+const DB = Object.fromEntries(DEPTS.map(d=>[d.k,d.bg]));
+
+// ═══════════════════════════════════════════════════════════
+// 6F LAYOUT CONFIG
+// Column x positions (with aisle gaps = 22px, pair gaps = 5px, seat width = 90px)
+// ═══════════════════════════════════════════════════════════
+const CW=90, CH=60, ROW_GAP=6;
+
+// Computed from: adjacent (diff=1) → 5px gap, aisle (diff=2) → 22px gap
+const COL_X = {1:0,3:112,5:224,7:336,9:448,10:543,12:655,13:750,15:862,16:957,18:1069,19:1164,21:1276,22:1371,24:1483,25:1578,27:1690,28:1785,30:1897,31:1992,32:2104,34:2216,35:2311};
+const TOTAL_W_6F = 2294 + 90 + 30;
+
+// Aisle divider x positions (between aisle-separated columns)
+const AISLE_DIVIDERS_6F = [
+  // x position (right edge of left col), shown as thin dashed line
+  [90+5, 112-5],    // between c1 and c3
+  [202+5, 224-5],   // between c3 and c5
+  [314+5, 336-5],   // between c5 and c7
+  [426+5, 448-5],   // between c7 and c9
+  [633+5, 655-5],   // between c10 and c12
+  [840+5, 862-5],   // between c13 and c15
+  [1047+5, 1069-5], // between c16 and c18
+  [1254+5, 1276-5], // between c19 and c21
+  [1461+5, 1483-5], // between c22 and c24
+  [1668+5, 1690-5], // between c25 and c27
+  [1875+5, 1897-5], // between c28 and c30
+  [2082+5, 2104-5],   // between c31 and c32
+  [2194, 2216],     // between c32 and c34
+];
+
+
+// Pillar positions [raw_col] for specific desk rows
+const PILLARS_6F = {
+  '3_9':true, '3_18':true, '3_27':true,   // desk row 3 (電商平台)
+  '8_9':true, '8_18':true, '8_27':true,   // desk row 8 (bottom zone)
+};
+
+// Row config: [visRow, zhRow, enRow, dept, extra_cols]
+// Top zone rows (0-5): zh at rows 8,10,12,14,16,18; en at rows 9,11,13,15,17,19
+// Special: visRow 4 has c1 (許萬寶 zh at r16, en at r19)
+// visRow 6: 李星儀 only (zh r23c1, en r24c1)
+// Bottom zone visRows 7-13: zh at rows 24,26,28,30,32,34,36,38; en at rows 25,27,29,31,33,35,37,39
+
+const ROW_DEPTS = {
+  0:'網路服務開發處', 1:'雲端服務開發部', 2:'資料科學分析部',
+  3:'電商平台開發處', 4:'電商應用發展暨整合服務部', 5:'軟體專案管理部',
+  6:'遠距健康',
+};
+
+// Top zone aisle Y-band
+const AISLE1_Y = 0, AISLE1_H = 26;
+const TOP_START = AISLE1_H;
+const TOP_ROWS  = 6; // visRows 0–5
+const AISLE2_Y  = TOP_START + TOP_ROWS*(CH+ROW_GAP);
+const AISLE2_H  = 24;
+const BOT_START = AISLE2_Y + AISLE2_H;
+const BOT_ROWS  = 8; // visRows 6–13
+const TOTAL_H_6F = BOT_START + BOT_ROWS*(CH+ROW_GAP) + 20;
+
+function rowY6F(vr) {
+  if (vr < TOP_ROWS) return TOP_START + vr*(CH+ROW_GAP);
+  return BOT_START + (vr - TOP_ROWS)*(CH+ROW_GAP);
+}
+
+// Standard columns for every row
+const STD_COLS = [5,7,9,10,12,13,15,16,18,19,21,22,24,25,27,28,30,31,32,34,35];
+const EXTRA_COLS_MAP = {4:[1], 6:[1], 7:[1,3], 8:[3], 9:[3]};
+
+// Max column per vis_row (no empty slots rendered beyond this)
+const ROW_MAX_COL = {0:24,1:30,2:32,3:32,4:32,5:32,6:31,7:31,8:31,9:32,10:32,11:32,12:34,13:31};
+
+// Positions that are NOT real desk slots (structural gaps, walls, etc.)
+const SLOT_BLACKLIST = new Set(["2_31","3_31","4_9","4_18","4_27","4_31","5_31","13_9","13_18","13_24","13_25","13_27","12_32"]);
+
+function getRowCols(vr) {
+  const max = ROW_MAX_COL[vr] ?? 35;
+  const extras = (EXTRA_COLS_MAP[vr]||[]).filter(c=>c<=max);
+  const all = [...extras, ...STD_COLS.filter(c=>c<=max)].filter(c=>!SLOT_BLACKLIST.has(`${vr}_${c}`));
+  const st = states[floor] || states['6F'];
+  const pinned = pinnedSlots[floor] || new Set();
+  // Find last occupied OR pinned col
+  const significant = all.filter(c => {
+    const k = `${vr}_${c}`;
+    return st[k] != null || pinned.has(k);
+  });
+  if (!significant.length) return [];
+  const lastSig = Math.max(...significant);
+  return all.filter(c => c <= lastSig);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SEAT DATA
+// Using 座位表(新) as primary source
+// ═══════════════════════════════════════════════════════════
+
+const ORIG_6F = {"0_5":{"zh":"陳冠文 #26298","en":"Win1_Chen","dept":"電商應用發展暨整合服務部"},"0_7":{"zh":"李貞誼 #27506","en":"Ariel1_Lee","dept":"電商應用發展暨整合服務部"},"0_9":{"zh":"新人","en":"","dept":"網路服務開發處","new":true},"0_10":{"zh":"馬醇洸 #29753","en":"CK_Ma","dept":"網路服務開發處"},"0_12":{"zh":"康家銘 #29622","en":"Dicky_Kang","dept":"網路服務開發處"},"0_13":{"zh":"吳芝瑩 #21382","en":"Joanne1_Wu","dept":"網路服務開發處"},"0_15":{"zh":"王勝暉 #29913","en":"SamSH_Wang","dept":"網路服務開發處"},"0_16":{"zh":"吳侍樺 #23272","en":"Suzy_Wu","dept":"網路服務開發處"},"0_18":{"zh":"林維政 #7315","en":"SR_Lin","dept":"網路服務開發處"},"0_19":{"zh":"周詩晴 #29803","en":"Irene1_Chou","dept":"軟體專案管理部"},"0_21":{"zh":"張佳純 #9459","en":"Yvonne_Chang","dept":"軟體專案管理部"},"0_22":{"zh":"黃郁喬 #24465","en":"Joyce_Huang","dept":"軟體專案管理部"},"0_24":{"zh":"劉家吟 #28569","en":"AliceCY_Liu","dept":"軟體專案管理部"},"1_5":{"zh":"楊曉雯 #26308","en":"Claire2_Yang","dept":"電商應用發展暨整合服務部"},"1_7":{"zh":"賴威臺 #29948","en":"Nix_Lai","dept":"電商應用發展暨整合服務部"},"1_9":{"zh":"新人","en":"","dept":"網路服務開發處","new":true},"1_10":{"zh":"王惠妤 #22360","en":"Tate1_Wang","dept":"網路服務開發處"},"1_12":{"zh":"黃詩棋 #29470","en":"JessieSC_Huang","dept":"網路服務開發處"},"1_13":{"zh":"魏浩翔 #26213","en":"Wayne_Wei","dept":"網路服務開發處"},"1_15":{"zh":"卓佳瑩 #28528","en":"Jenny_Cho","dept":"網路服務開發處"},"1_16":{"zh":"陳亦良 #29779","en":"William6_Chen","dept":"網路服務開發處"},"1_18":{"zh":"林憶萍 #25991","en":"AppleYP_Lin","dept":"網路服務開發處"},"1_19":{"zh":"蔡宜真 #26607","en":"Bana_Tsai","dept":"軟體專案管理部"},"1_21":{"zh":"賈逸翔 #25988","en":"Isabelle_Chia","dept":"軟體專案管理部"},"1_22":{"zh":"林季頻 #28097","en":"Crystal_Lin","dept":"軟體專案管理部"},"1_24":{"zh":"黃羽菁 #25316","en":"Florence_Huang","dept":"軟體專案管理部"},"1_25":{"zh":"蘇永哲 #23948","en":"PeterYJ_Su","dept":"電商平台開發處"},"1_27":{"zh":"王建堯 #22013","en":"Will3_Wang","dept":"電商平台開發處"},"1_28":{"zh":"林建德 #22136","en":"Jason2_Lin","dept":"電商平台開發處"},"1_30":{"zh":"廖玉雲 #29939","en":"Cloud_Liao","dept":"電商平台開發處"},"2_5":{"zh":"陳思妘 #29750","en":"Joyce4_Chen","dept":"電商應用發展暨整合服務部"},"2_7":{"zh":"洪瑋駿 #26053","en":"Markus_Hung","dept":"電商應用發展暨整合服務部"},"2_9":{"zh":"新人","en":"","dept":"網路服務開發處","new":true},"2_10":{"zh":"吳昀澄 #25116","en":"JamesYC_Wu","dept":"網路服務開發處"},"2_12":{"zh":"杜秉軒 #29766","en":"Du_Du","dept":"網路服務開發處"},"2_13":{"zh":"蔡源璟 #23714","en":"IanYC_Tsai","dept":"網路服務開發處"},"2_15":{"zh":"Nebiyu Elias Talefe #25388","en":"Nebiyu2_Talefe","dept":"網路服務開發處"},"2_16":{"zh":"徐維欣 #29575","en":"Weihsin_Hsu","dept":"網路服務開發處"},"2_18":{"zh":"許銘峯 #25511","en":"Ken2_Hsu","dept":"網路服務開發處"},"2_19":{"zh":"李珠雯 #25686","en":"CarinaCW_Li","dept":"軟體專案管理部"},"2_21":{"zh":"陳靜慧 #28627","en":"Whitney_Chen","dept":"軟體專案管理部"},"2_22":{"zh":"陳亭宇 #22789","en":"Verna_Chen","dept":"軟體專案管理部"},"2_24":{"zh":"曾鈺婷 #22461","en":"Anita_Tseng","dept":"軟體專案管理部"},"2_25":{"zh":"蘇英明 #26238","en":"EllenYM_Su","dept":"電商平台開發處"},"2_27":{"zh":"吳品嫻 #22685","en":"Shirley1_Wu","dept":"電商平台開發處"},"2_28":{"zh":"鄭宇翔 #28922","en":"Shawn_Cheng","dept":"電商平台開發處"},"2_30":{"zh":"黃騰毅 #20049","en":"Antony_Huang","dept":"電商平台開發處"},"2_32":{"zh":"蔣曜致 #24938","en":"Dennis_Chiang","dept":"電商平台開發處"},"3_5":{"zh":"康和真 #29686","en":"Janice_Kang","dept":"電商應用發展暨整合服務部"},"3_7":{"zh":"邱仁昱 #23953","en":"EricJY_Chiu","dept":"電商應用發展暨整合服務部"},"3_10":{"zh":"吳勁緯 #27685","en":"Wendell_Wu","dept":"網路服務開發處"},"3_12":{"zh":"王俐云 #25897","en":"Lilly_Wang","dept":"網路服務開發處"},"3_13":{"zh":"王冠蓁 #24720","en":"Valerie_Wang","dept":"網路服務開發處"},"3_15":{"zh":"謝鎮宇 #27861","en":"AndyCY_Hsieh","dept":"網路服務開發處"},"3_16":{"zh":"鄒桂翔 #25724","en":"Florence_Tsou","dept":"網路服務開發處"},"3_19":{"zh":"黃思樵 #25857","en":"Cuzz_Huang","dept":"軟體專案管理部"},"3_21":{"zh":"呂冠蓉 #28156","en":"SunnyKJ_Lu","dept":"軟體專案管理部"},"3_22":{"zh":"鍾佑欣 #26352","en":"Yohsin_Chung","dept":"軟體專案管理部"},"3_24":{"zh":"黃小玲","en":"YukiXL_Huang","dept":"軟體專案管理部"},"3_25":{"zh":"陳信華 #28923","en":"KenSH_Chen","dept":"電商平台開發處"},"3_28":{"zh":"許芷綾 #24293","en":"JoyceTL_Hsu","dept":"電商平台開發處"},"3_30":{"zh":"江佳臻 #29568","en":"Jane_Jiang","dept":"電商平台開發處"},"3_32":{"zh":"賴瓊瑤 #24551","en":"Ice_Lai","dept":"電商平台開發處"},"4_1":{"zh":"許萬寶 #21688","en":"Marvin","dept":"未指定"},"4_5":{"zh":"徐晉凱 #29236","en":"Kai_Shiu","dept":"電商應用發展暨整合服務部"},"4_7":{"zh":"張瑜庭 #29909","en":"Judy_Chang","dept":"電商應用發展暨整合服務部"},"4_10":{"zh":"沈佩萱 #26664","en":"Claire_Shen","dept":"網路服務開發處"},"4_12":{"zh":"CK 二課新人","en":"","dept":"網路服務開發處","new":true},"4_13":{"zh":"黃心荷 #27107","en":"EllyHH_Huang","dept":"網路服務開發處"},"4_15":{"zh":"陳羽妙 #25328","en":"IvyYM_Chen","dept":"網路服務開發處"},"4_16":{"zh":"劉怡瑄 #21461","en":"Hsuan_Liu","dept":"網路服務開發處"},"4_21":{"zh":"林靖軒 #22712","en":"RitaCH_Lin","dept":"軟體專案管理部"},"4_22":{"zh":"陳建元 #23769","en":"Franky_Chen","dept":"軟體專案管理部"},"4_25":{"zh":"徐志鋒 #22163","en":"Hank6_Hsu","dept":"電商平台開發處"},"4_28":{"zh":"余惠茹 #29550","en":"Cecilia_Yu","dept":"電商平台開發處"},"4_30":{"zh":"張凌寰 #24436","en":"Mio_Chang","dept":"電商平台開發處"},"4_32":{"zh":"郭家瑋 #25711","en":"Rex_Kuo","dept":"電商平台開發處"},"5_5":{"zh":"陳品安 #22584","en":"AnnPA_Chen","dept":"電商應用發展暨整合服務部"},"5_7":{"zh":"高涵珮 #21856","en":"Sophy_Kao","dept":"電商應用發展暨整合服務部"},"5_9":{"zh":"新人","en":"","dept":"網路服務開發處","new":true},"5_10":{"zh":"新人","en":"","dept":"網路服務開發處","new":true},"5_12":{"zh":"CK 一課新人","en":"","dept":"網路服務開發處","new":true},"5_13":{"zh":"陳邑華 #27358","en":"Alias_Chen","dept":"網路服務開發處"},"5_15":{"zh":"外包","en":"","dept":"網路服務開發處"},"5_16":{"zh":"盛宏淵 #25251","en":"Yuan_Sheng","dept":"網路服務開發處"},"5_18":{"zh":"新人","en":"","dept":"網路服務開發處","new":true},"5_19":{"zh":"新人","en":"","dept":"資料科學分析部","new":true},"5_21":{"zh":"莊庚樺 #27238","en":"Phoebe_Chuang","dept":"軟體專案管理部"},"5_22":{"zh":"梁維軒 #28902","en":"David_Liang","dept":"軟體專案管理部"},"5_24":{"zh":"陳風熏 #28221","en":"LuckyFS_Chen","dept":"軟體專案管理部"},"5_25":{"zh":"蕭宗杰 #22106","en":"Satfa_Hsiao","dept":"電商平台開發處"},"5_27":{"zh":"林佩昀 #21985","en":"HelenPY_Lin","dept":"電商平台開發處"},"5_28":{"zh":"楊育惠 #23464","en":"Joanne_Yang","dept":"電商平台開發處"},"5_30":{"zh":"洪彧丞 #21654","en":"Kyrie_Hung","dept":"電商平台開發處"},"5_32":{"zh":"張華恩","en":"John1_chang","dept":"電商平台開發處"},"6_1":{"zh":"李星儀 #28719","en":"CocoSR_Li","dept":"網路服務開發處"},"6_5":{"zh":"邱浩維 #29208","en":"HowardHW_Chiu","dept":"電商應用發展暨整合服務部"},"6_7":{"zh":"林倢伃 #28774","en":"Jenny5_Lin","dept":"電商應用發展暨整合服務部"},"6_9":{"zh":"林泓陞 #24575","en":"EthanHS_Lin","dept":"網路服務開發處"},"6_10":{"zh":"石展兢 #22008","en":"Ricky_Shih","dept":"網路服務開發處"},"6_12":{"zh":"蔡政宏 #28583","en":"HenryCH_Tsai","dept":"網路服務開發處"},"6_13":{"zh":"蔡明逵 #26858","en":"Tommy_Tsai","dept":"網路服務開發處"},"6_15":{"zh":"詹佳旻 #29834","en":"KevinCM_Chan","dept":"網路服務開發處"},"6_16":{"zh":"新人","en":"","dept":"網路服務開發處","new":true},"6_18":{"zh":"賴仕哲 #28198","en":"SimonSC_Lai","dept":"網路服務開發處"},"6_19":{"zh":"黃俐瑗 #26450","en":"Lisa3_Huang","dept":"資料科學分析部"},"6_21":{"zh":"李宜桓 #22902","en":"Antony_Lee","dept":"資料科學分析部"},"6_24":{"zh":"陳俐吟 #22884","en":"Leia_Chen","dept":"軟體專案管理部"},"6_25":{"zh":"李文筆 #29073","en":"Wunbi_Li","dept":"電商平台開發處"},"6_27":{"zh":"陳星儒 #29973","en":"Steven2_Chen","dept":"電商平台開發處"},"6_31":{"zh":"外包","en":"","dept":"電商平台開發處"},"7_1":{"zh":"新人","en":"","dept":"電商平台開發處","new":true},"7_3":{"zh":"楊斯棋 #22709","en":"SophiaSC_Yang","dept":"網路服務開發處"},"7_5":{"zh":"新人","en":"","dept":"電商應用發展暨整合服務部","new":true},"7_7":{"zh":"吳向茵 #24791","en":"Aries_Wu","dept":"電商應用發展暨整合服務部"},"7_9":{"zh":"林裕銓 #28691","en":"IanYC_Lin","dept":"網路服務開發處"},"7_10":{"zh":"林姿頻 #28670","en":"Brier_Lin","dept":"網路服務開發處"},"7_12":{"zh":"張哲家 #28330","en":"Johnny2_Chang","dept":"網路服務開發處"},"7_13":{"zh":"曾齡臻 #24140","en":"LynnLC_Tseng","dept":"網路服務開發處"},"7_15":{"zh":"吳志斌 #21062","en":"Tony_Wu","dept":"網路服務開發處"},"7_16":{"zh":"陳家偉 #24639","en":"HarryCW_Chen","dept":"網路服務開發處"},"7_18":{"zh":"錢祥原 #22963","en":"Jimmy_Chien","dept":"網路服務開發處"},"7_19":{"zh":"曲珩 #29938","en":"Hopper_Chu","dept":"資料科學分析部"},"7_21":{"zh":"王冀鋼 #21939","en":"PeterCK_Wang","dept":"資料科學分析部"},"7_22":{"zh":"張馨予 #24657","en":"Vera_Chang","dept":"軟體專案管理部"},"7_24":{"zh":"李靖雯 #27538","en":"SharonCW_Lee","dept":"軟體專案管理部"},"7_25":{"zh":"蔡亞昕 #29878","en":"Cindy_Tsai","dept":"電商平台開發處"},"7_27":{"zh":"黃健嘉 #22965","en":"MikeJJ_Huang","dept":"電商平台開發處"},"7_28":{"zh":"黃柏諺 #28639","en":"Bernie_Huang","dept":"電商平台開發處"},"7_30":{"zh":"劉彥伶 #28629","en":"YuriYL_Liu","dept":"電商平台開發處"},"7_31":{"zh":"李宛真 #29752","en":"Julia_Lee","dept":"電商平台開發處"},"8_5":{"zh":"樂子晴 #27927","en":"Alice_Yueh","dept":"電商應用發展暨整合服務部"},"8_7":{"zh":"新人","en":"","dept":"電商應用發展暨整合服務部","new":true},"8_10":{"zh":"葉子由 #29860","en":"Kite_Yeh","dept":"網路服務開發處"},"8_12":{"zh":"SR外包","en":"","dept":"網路服務開發處"},"8_15":{"zh":"SR外包","en":"","dept":"網路服務開發處"},"8_13":{"zh":"游瑞霖 #27326","en":"Jackie_Yu","dept":"網路服務開發處"},"8_16":{"zh":"劉厤登 #28051","en":"KevinLi_Liu","dept":"網路服務開發處"},"8_19":{"zh":"朱芷萱 #26480","en":"Vickie_Chu","dept":"資料科學分析部"},"8_21":{"zh":"汪于棻 #29959","en":"Gina3_Wang","dept":"資料科學分析部"},"8_22":{"zh":"干詠薇 #29289","en":"Vivi1_Kan","dept":"軟體專案管理部"},"8_24":{"zh":"張涵 #27985","en":"Christine_Chang","dept":"軟體專案管理部"},"8_25":{"zh":"嚴太成 #24020","en":"Tai_Yen","dept":"電商平台開發處"},"8_28":{"zh":"戴健軒 #29195","en":"Jason1_Tai","dept":"電商平台開發處"},"8_30":{"zh":"蔡芷昀 #22272","en":"Rita_Tsai","dept":"電商平台開發處"},"8_31":{"zh":"張錦玉 #25692","en":"Molly1_Chang","dept":"電商平台開發處"},"9_3":{"zh":"陳柔羽 #22897","en":"Raighny1_Chen","dept":"網路服務開發處"},"9_5":{"zh":"劉潞葳 #29611","en":"Kristy_Liu","dept":"電商應用發展暨整合服務部"},"9_7":{"zh":"洪子恆 #28903","en":"Vincent_Hung","dept":"電商應用發展暨整合服務部"},"9_9":{"zh":"莊孟翎 #21302","en":"Linda_Chuang","dept":"網路服務開發處"},"9_10":{"zh":"許智誠 #24317","en":"Jay4_Hsu","dept":"網路服務開發處"},"9_12":{"zh":"黃子庭 #26663","en":"Milly_Huang","dept":"網路服務開發處"},"9_13":{"zh":"吳婕榆 #29823","en":"Chelsea_Wu","dept":"網路服務開發處"},"9_15":{"zh":"陳渝軒 #28136","en":"Bonny_Chen","dept":"網路服務開發處"},"9_16":{"zh":"錢大慶 #23349","en":"Henry1_Chien","dept":"網路服務開發處"},"9_18":{"zh":"林鼎陽 #25165","en":"DingYang_Lin","dept":"網路服務開發處"},"9_19":{"zh":"孫嘉璣 #29637","en":"Jasmine_Sun","dept":"資料科學分析部"},"9_21":{"zh":"凌瑜澤 #28451","en":"Zona_Ling","dept":"資料科學分析部"},"9_22":{"zh":"趙永詠 #27034","en":"Yoyo_Chao","dept":"軟體專案管理部"},"9_24":{"zh":"李家豪 #29451","en":"Casper3_Lee","dept":"軟體專案管理部"},"9_25":{"zh":"林君儒 #25601","en":"ArielCJ_Lin","dept":"電商平台開發處"},"9_27":{"zh":"楊育婷 #24937","en":"Annie_Yang","dept":"電商平台開發處"},"9_28":{"zh":"張碧真 #29149","en":"Ivy1_Chang","dept":"電商平台開發處"},"9_30":{"zh":"鄭惠鈴 #27661","en":"Heley_Cheng","dept":"電商平台開發處"},"9_31":{"zh":"王鴻賢 #24285","en":"Matt1_Wang","dept":"電商平台開發處"},"10_5":{"zh":"卓妤謙 #29916","en":"Rita_Cho","dept":"電商應用發展暨整合服務部"},"10_7":{"zh":"江杰 #29441","en":"Jesse_Jiang","dept":"電商應用發展暨整合服務部"},"10_9":{"zh":"許聖賢 #22920","en":"Sam1_Shiu","dept":"網路服務開發處"},"10_10":{"zh":"郭建成 #29138","en":"Jayson_Kuo","dept":"網路服務開發處"},"10_12":{"zh":"許毅帆 #26739","en":"Ivan1_Hsu","dept":"網路服務開發處"},"10_13":{"zh":"曾台潔 #24961","en":"Zoey_Tseng","dept":"網路服務開發處"},"10_15":{"zh":"陳俞君 #28947","en":"Yuna_Chen","dept":"網路服務開發處"},"10_16":{"zh":"郭凌志 #26286","en":"Lexus_Kuo","dept":"網路服務開發處"},"10_18":{"zh":"林欣儀 #28178","en":"Hsinyi_Lin","dept":"網路服務開發處"},"10_19":{"zh":"廖俊凱 #28556","en":"KenCK_Liao","dept":"資料科學分析部"},"10_21":{"zh":"趙俊程 #29812","en":"Harry_Chao","dept":"資料科學分析部"},"10_22":{"zh":"羅悠理 #28329","en":"Yuli_Lo","dept":"軟體專案管理部"},"10_24":{"zh":"陳以妮 #28050","en":"NicoleYN_Chen","dept":"軟體專案管理部"},"10_25":{"zh":"陳常樂 #21669","en":"Benjamin_Chan","dept":"電商平台開發處"},"10_27":{"zh":"蘇靖婷 #26185","en":"AmandaCT_Su","dept":"電商平台開發處"},"10_28":{"zh":"李宜倫 #23599","en":"IvanYL_Li","dept":"電商平台開發處"},"10_31":{"zh":"林文璽 #28804","en":"Wenhsi_Lin","dept":"電商平台開發處"},"11_5":{"zh":"劉子瑄 #24594","en":"IrisZS_Liu","dept":"電商應用發展暨整合服務部"},"11_7":{"zh":"朱庭萱 #28462","en":"Shanna_Chu","dept":"電商應用發展暨整合服務部"},"11_9":{"zh":"王俊杰 #26105","en":"Rex2_Wang","dept":"網路服務開發處"},"11_10":{"zh":"古皓宇 #27097","en":"Howard_Gu","dept":"網路服務開發處"},"11_12":{"zh":"林庭羽 #21271","en":"Tina11_Lin","dept":"網路服務開發處"},"11_13":{"zh":"李欣枏 #29690","en":"Celia1_Lee","dept":"網路服務開發處"},"11_15":{"zh":"張程 #23562","en":"CathyC_Chang","dept":"網路服務開發處"},"11_16":{"zh":"賴威礼 #25382","en":"Wen1_Lai","dept":"網路服務開發處"},"11_18":{"zh":"邱鈺雁 #22043","en":"Erin_Chiu","dept":"網路服務開發處"},"11_19":{"zh":"陳愷謙 #26068","en":"Carolyn_Chen","dept":"資料科學分析部"},"11_21":{"zh":"塗蕙寧 #24246","en":"Winnie_Tu","dept":"資料科學分析部"},"11_22":{"zh":"吳婕妤 #24336","en":"Joan1_Wu","dept":"軟體專案管理部"},"11_24":{"zh":"陳悅文 #24304","en":"Yvonne2_Chen","dept":"軟體專案管理部"},"11_25":{"zh":"吳俊德 #22170","en":"Jinder_Wu","dept":"電商平台開發處"},"11_27":{"zh":"魏良益 #24566","en":"Thomas_Wei","dept":"電商平台開發處"},"11_30":{"zh":"林雨潔 #28628","en":"Winni_Lin","dept":"電商平台開發處"},"11_31":{"zh":"李彥緯 #27288","en":"Daniel3_Lee","dept":"電商平台開發處"},"12_5":{"zh":"劉厚宏 #26201","en":"RyanHH_Liu","dept":"電商應用發展暨整合服務部"},"12_7":{"zh":"徐曉涵 #21066","en":"Vicky1_Hsu","dept":"電商應用發展暨整合服務部"},"12_9":{"zh":"許庭魁 #29453","en":"Jerry_Hsu","dept":"網路服務開發處"},"12_10":{"zh":"新人","en":"","dept":"網路服務開發處","new":true},"12_12":{"zh":"曾琪媛 #29811","en":"Winnie_Tseng","dept":"網路服務開發處"},"12_13":{"zh":"陳晏慈 #22014","en":"Tammy_Chen","dept":"網路服務開發處"},"12_15":{"zh":"曾昱欣 #28904","en":"Abby_Tzeng","dept":"網路服務開發處"},"12_16":{"zh":"許婉玉 #27372","en":"Angel_Hsu","dept":"網路服務開發處"},"12_18":{"zh":"溫婷雯 #21316","en":"Winni_Wen","dept":"網路服務開發處"},"12_19":{"zh":"許哲瑋 #22761","en":"Billy_Hsu","dept":"資料科學分析部"},"12_21":{"zh":"蔡睿澤 #21402","en":"Brandon_Tsai","dept":"資料科學分析部"},"12_22":{"zh":"陳芝君 #27726","en":"Gloria2_Chen","dept":"軟體專案管理部"},"12_24":{"zh":"楊坤達 #23633","en":"Tad_Yang","dept":"軟體專案管理部"},"12_25":{"zh":"許仁杰 #29712","en":"Jay1_Hsu","dept":"電商平台開發處"},"12_27":{"zh":"倪菁穗 #22036","en":"Angel_Ni","dept":"電商平台開發處"},"12_28":{"zh":"吳孫銘 #27825","en":"Sam1_Wu","dept":"電商平台開發處"},"12_30":{"zh":"林俊吉 #28768","en":"JackJJ_Lin","dept":"電商平台開發處"},"12_31":{"zh":"張祖慰 #24726","en":"Way_Chang","dept":"電商平台開發處"},"13_5":{"zh":"蕭雅元 #24434","en":"Vivian_Hsiao","dept":"電商應用發展暨整合服務部"},"13_7":{"zh":"魏幸玉 #26197","en":"Vanessa_Wei","dept":"電商應用發展暨整合服務部"},"13_10":{"zh":"丁羽玲 #27489","en":"Rain_Tin","dept":"網路服務開發處"},"13_12":{"zh":"賴漢鍾 #28258","en":"Eddie_Lai","dept":"網路服務開發處"},"13_13":{"zh":"潘維霆 #27365","en":"Jason007_Pan","dept":"網路服務開發處"},"13_15":{"zh":"郭瀞云 #27340","en":"Ivy_Kuo","dept":"網路服務開發處"},"13_16":{"zh":"黃大銘 #27350","en":"Taming_Huang","dept":"網路服務開發處"},"13_19":{"zh":"葉盈伶 #27314","en":"Cheryl_Yeh","dept":"資料科學分析部"},"13_21":{"zh":"黃木風 #26857","en":"Mufong_Huang","dept":"資料科學分析部"},"13_22":{"zh":"陳仲豪 #26193","en":"Gary2_Chen","dept":"軟體專案管理部"},"13_28":{"zh":"廖永能 #22174","en":"Para_Liao","dept":"電商平台開發處"},"13_30":{"zh":"張書瑞 #22176","en":"Ray_Chang","dept":"電商平台開發處"},"13_31":{"zh":"張筱珮 #24926","en":"Emily_Chang","dept":"電商平台開發處"},"9_32":{"zh":"賴映里 #25495","en":"Nini_Lai","dept":"電商平台開發處"},"10_32":{"zh":"林宣成 #22275","en":"Bob_Lin","dept":"電商平台開發處"},"11_32":{"zh":"藍國峯 #22139","en":"Lance_Lan","dept":"電商平台開發處"},"12_34":{"zh":"李怡慧 #22040","en":"Litmong_Li","dept":"電商平台開發處"}};
+
+// 4F data (from 4F線上座位圖 sheet)
+// Layout: simple grid, 2 columns at c3 and c5
+const ORIG_4F = {
+  "0_0":{"zh":"王柄雄 (Ben)","en":"RD1","dept":"未指定"},
+  "1_0":{"zh":"陳以十 (Bruce)","en":"F2E 外包","dept":"未指定"},
+  "1_1":{"zh":"陳列軒 (Oscar)","en":"F2E 外包","dept":"未指定"},
+  "2_0":{"zh":"EC外包","en":"","dept":"未指定"},
+  "2_1":{"zh":"EC外包","en":"","dept":"未指定"},
+  "3_2":{"zh":"NA","en":"","dept":"未指定"},
+  "3_3":{"zh":"NA","en":"","dept":"未指定"},
+};
+
+// 10F data
+const ORIG_10F = {"0_2":{"zh":"林韋廷 #29963","en":"Willie1_Lin","dept":"雲端服務開發部"},"0_3":{"zh":"邱伶怡 #994","en":"Chloe_Chiu","dept":"雲端服務開發部"},"1_0":{"zh":"郭建宏 #23183","en":"Kakuangelo_kuo","dept":"遠距健康"},"1_1":{"zh":"林純忠 #27507","en":"Mirage_Lin","dept":"雲端服務開發部"},"1_2":{"zh":"曹昌林 #22563","en":"Jerry_Tsao","dept":"雲端服務開發部"},"1_3":{"zh":"陳彥伯 #29098","en":"Olaf1_Chen","dept":"雲端服務開發部"},"2_0":{"zh":"劉金富 #3015","en":"Jonny1_Liu","dept":"雲端服務開發部"},"2_1":{"zh":"黃怡芸 #29399","en":"Where_Huang","dept":"遠距健康"},"2_2":{"zh":"葉日威 #24301","en":"Mars_Yeh","dept":"雲端服務開發部"},"2_3":{"zh":"李季恩 #9940","en":"Nathan1_Lee","dept":"雲端服務開發部"},"3_0":{"zh":"蔣克誠 #29813","en":"Josh2_Chiang","dept":"雲端服務開發部"},"3_1":{"zh":"楊政遠 #23832","en":"Sawyer_Yang","dept":"雲端服務開發部"},"3_2":{"zh":"顏政易 #23253","en":"Tony_Yen","dept":"雲端服務開發部"},"3_3":{"zh":"陳威志 #21597","en":"Sid1_Chen","dept":"雲端服務開發部"},"4_2":{"zh":"黃信維 #29192","en":"Shawn5_Huang","dept":"雲端服務開發部"},"4_3":{"zh":"張柏偉 #25541","en":"Virgil_Chang","dept":"雲端服務開發部"},"5_2":{"zh":"何鎮 #29908","en":"Pto_He","dept":"雲端服務開發部"},"5_3":{"zh":"駱泱靚 #23799","en":"Camel_Lo","dept":"雲端服務開發部"},"6_2":{"zh":"Yanwarud Chinsiriwong #25098","en":"Wenfeng_Chinsiriwong","dept":"雲端服務開發部"},"6_3":{"zh":"陳煦 #28725","en":"Summer7_Chen","dept":"雲端服務開發部"},"7_2":{"zh":"程令儀 #22465","en":"Kim_Cheng","dept":"雲端服務開發部"},"7_3":{"zh":"蔡旻哲 #24281","en":"Ian2_Tsai","dept":"雲端服務開發部"}};
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let floor = '6F';
+let states = {};
+let undoStack = {};
+let dragId = null, dragFloor = null;
+let pinnedSlots = {'6F':new Set(),'4F':new Set(),'10F':new Set()}; // empty slots to always show
+let filterDept = 'all', srchQ = '';
+let editKey = null, editFloor = null;
+let zoom = 55;
+
+function sk(vr,vc){return `${vr}_${vc}`;}
+
+function initStates(){
+  states={'6F':{},'4F':{},'10F':{}};
+  undoStack={'6F':[],'4F':[],'10F':[]};
+  function load(orig, fl){
+    Object.entries(orig).forEach(([k,p])=>states[fl][k]=p.new?null:{...p});
+    // For 6F, fill all slot keys with null if not in orig
+    if(fl==='6F'){
+      for(let vr=0;vr<14;vr++){
+        getRowCols(vr).forEach(vc=>{
+          const k=sk(vr,vc);
+          if(!(k in states['6F'])) states['6F'][k]=null;
+        });
+      }
+    }
+  }
+  load(ORIG_6F,'6F');
+  load(ORIG_4F,'4F');
+  load(ORIG_10F,'10F');
+}
+
+function clone(f){return JSON.parse(JSON.stringify(states[f]));}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════
+function render(){
+  const cv=document.getElementById('cv');
+  cv.innerHTML='';
+  if(floor==='6F') render6F(cv);
+  else if(floor==='4F') render4F(cv);
+  else render10F(cv);
+  buildLegend();
+  updateBadge();
+  document.getElementById('undoB').disabled=!undoStack[floor].length;
+  applyFilter();
+}
+
+function render6F(cv){
+  cv.style.width=TOTAL_W_6F+'px';
+  cv.style.height=TOTAL_H_6F+'px';
+
+  // Full-height vertical aisle lanes
+  AISLE_DIVIDERS_6F.forEach(([x1,x2])=>{
+    const lane=document.createElement('div');
+    lane.style.cssText=`position:absolute;left:${x1}px;top:0;width:${x2-x1}px;height:${TOTAL_H_6F}px;background:#dce1ec;pointer-events:none;z-index:0;`;
+    cv.appendChild(lane);
+  });
+  // Extra wide visible grey aisle between col 32 and col 34
+  const extraLane=document.createElement('div');
+  extraLane.style.cssText=`position:absolute;left:2194px;top:0;width:22px;height:${TOTAL_H_6F}px;background:#d0d5e2;pointer-events:none;z-index:0;`;
+  cv.appendChild(extraLane);
+
+  // Horizontal aisles
+  mkAisle(cv,AISLE1_Y,AISLE1_H,'走　道');
+  mkAisle(cv,AISLE2_Y,AISLE2_H,'走　道');
+  // 門口 label
+  const doorEl=document.createElement('div');
+  const _dx=COL_X[34], _dy=rowY6F(5);
+  doorEl.style.position='absolute';
+  doorEl.style.left=_dx+'px';
+  doorEl.style.top=_dy+'px';
+  doorEl.style.width=CW+'px';
+  doorEl.style.height=CH+'px';
+  doorEl.style.background='transparent';
+  doorEl.style.border='none';
+  doorEl.style.borderRadius='8px';
+  doorEl.style.color='#1a2236';
+  doorEl.style.fontWeight='700';
+  doorEl.style.fontSize='13px';
+  doorEl.style.zIndex='10';
+  doorEl.style.display='flex';
+  doorEl.style.alignItems='center';
+  doorEl.style.justifyContent='center';
+  doorEl.style.textAlign='center';
+  doorEl.style.fontFamily='Noto Sans TC,sans-serif';
+  doorEl.textContent='門口';
+  cv.appendChild(doorEl);
+  // Ensure canvas is wide enough to show door
+  cv.style.width=Math.max(parseInt(cv.style.width)||0, _dx+CW+20)+'px';
+
+  for(let vr=0;vr<14;vr++){
+    const y=rowY6F(vr);
+    const dept=ROW_DEPTS[vr];
+
+
+    const cols=getRowCols(vr);
+    cols.forEach(vc=>{
+      const k=sk(vr,vc);
+      const isPillar=PILLARS_6F[k];
+      const person=states['6F'][k];
+      const x=COL_X[vc];
+      if(x===undefined)return;
+      if(isPillar) mkPillar(cv,x,y);
+      else if(person) mkSeat(cv,k,x,y,person,'6F');
+      else mkEmpty(cv,k,x,y,'6F');
+    });
+  }
+}
+
+function render4F(cv){
+  // Simple grid: 4 cols (0-3), 4 rows
+  const CW4=110, CH4=65, G4=8;
+  const rows4=4, cols4=4;
+  cv.style.width=(cols4*(CW4+G4)+40)+'px';
+  cv.style.height=(rows4*(CH4+G4)+40)+'px';
+
+  // Title
+  const t=document.createElement('div');
+  t.style.cssText='position:absolute;left:0;top:0;font-size:11px;color:var(--tx2);font-family:Space Mono,monospace;padding:4px 8px;';
+  t.textContent='4F';
+  cv.appendChild(t);
+
+  const startY=28;
+  for(let vr=0;vr<rows4;vr++){
+    for(let vc=0;vc<cols4;vc++){
+      const k=sk(vr,vc);
+      const x=vc*(CW4+G4);
+      const y=startY+vr*(CH4+G4);
+      const person=states['4F'][k];
+      if(person) mkSeat(cv,k,x,y,person,'4F',CW4,CH4);
+      else mkEmpty(cv,k,x,y,'4F',CW4,CH4);
+    }
+  }
+}
+
+const SKIP_10F = new Set(['4_0','4_1','5_0','5_1','6_0','6_1','7_0','7_1','0_0','0_1']);
+function render10F(cv){
+  const CW10=110, CH10=65, G10=8;
+  cv.style.width=(4*(CW10+G10)+40)+'px';
+  cv.style.height=(8*(CH10+G10)+20)+'px';
+  for(let vr=0;vr<8;vr++){
+    for(let vc=0;vc<4;vc++){
+      const k=sk(vr,vc);
+      if(SKIP_10F.has(k)) continue;
+      const x=vc*(CW10+G10);
+      const y=vr*(CH10+G10);
+      const person=states['10F'][k];
+      if(person) mkSeat(cv,k,x,y,person,'10F',CW10,CH10);
+      else mkEmpty(cv,k,x,y,'10F',CW10,CH10);
+    }
+  }
+}
+
+function mkAisle(cv,top,h,text){
+  const el=document.createElement('div');
+  el.className='aisle-band'; el.style.zIndex='3';
+  el.style.cssText=`top:${top}px;height:${h}px;`;
+  el.innerHTML=`<span>${text}</span>`;
+  cv.appendChild(el);
+}
+
+function mkPillar(cv,x,y){
+  const el=document.createElement('div');
+  el.className='pillar';
+  el.style.cssText=`left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;`;
+  el.innerHTML='<span>柱子</span>';
+  cv.appendChild(el);
+}
+
+function mkSeat(cv,key,x,y,p,fl,w,h){
+  w=w||CW; h=h||CH;
+  // Special: 許萬寶 seat spans 2 rows vertically
+  if(key==='4_1' && fl==='6F') h=126;
+  const el=document.createElement('div');
+  const isNew=p.new;
+  el.className='seat'+(isNew?' new-hire':'');
+  el.id='s-'+key; el.dataset.key=key; el.dataset.fl=fl;
+  const color=DC[p.dept]||'#94a3b8';
+  const bg=DB[p.dept]||'#f8fafc';
+  el.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${isNew?'#fafbfe':bg};z-index:1;`;
+  el.innerHTML=`<div class="bar" style="background:${color}"></div><div class="zh">${p.zh||p.en}</div>${p.zh&&p.en?`<div class="en">${p.en}</div>`:''}<div class="ebtn" onclick="openEdit('${key}','${fl}',event)">✎</div>`;
+  el.draggable=true;
+  el.addEventListener('dragstart',onDS); el.addEventListener('dragend',onDE);
+  el.addEventListener('mouseenter',showTip); el.addEventListener('mouseleave',hideTip);
+  el.addEventListener('dragover',onDO); el.addEventListener('dragleave',onDL);
+  el.addEventListener('drop',onDrop);
+  cv.appendChild(el);
+}
+
+function mkEmpty(cv,key,x,y,fl,w,h){
+  w=w||CW; h=h||CH;
+  const el=document.createElement('div');
+  el.className='eslot'; el.id='s-'+key; el.dataset.key=key; el.dataset.fl=fl;
+  el.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px;z-index:1;cursor:pointer;`;
+  el.innerHTML='<div class="ep">+</div><div class="el">新增</div>';
+  el.addEventListener('click', ()=>openEdit(key,fl,{stopPropagation:()=>{},preventDefault:()=>{}}));
+  el.addEventListener('dragover',onDO); el.addEventListener('dragleave',onDL); el.addEventListener('drop',onDrop);
+  cv.appendChild(el);
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAG & DROP
+// ═══════════════════════════════════════════════════════════
+function onDS(e){ dragId=e.currentTarget.dataset.key; dragFloor=e.currentTarget.dataset.fl; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; }
+function onDE(e){ e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over')); dragId=null; }
+function onDO(e){ e.preventDefault(); if(e.currentTarget.dataset.key!==dragId) e.currentTarget.classList.add('drag-over'); }
+function onDL(e){ e.currentTarget.classList.remove('drag-over'); }
+function onDrop(e){
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  const toKey=e.currentTarget.dataset.key, fl=e.currentTarget.dataset.fl;
+  if(!dragId||dragId===toKey) return;
+  const src=states[fl][dragId]; if(!src) return;
+  undoStack[fl].push(clone(fl));
+  if(undoStack[fl].length>60) undoStack[fl].shift();
+  const dst=states[fl][toKey];
+  if(!dst){
+    states[fl][toKey]=src; states[fl][dragId]=null;
+    pinnedSlots[fl].add(dragId); // pin original slot as empty
+    toast(`→ ${src.zh||src.en}`);
+  } else {
+    states[fl][dragId]=dst; states[fl][toKey]=src;
+    toast(`⇄ ${src.zh||src.en} ↔ ${dst.zh||dst.en}`);
+  }
+  save(); render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════════
+const tipEl=document.getElementById('tip');
+function showTip(e){
+  const k=e.currentTarget.dataset.key,fl=e.currentTarget.dataset.fl;
+  const p=states[fl][k]; if(!p) return;
+  const c=DC[p.dept]||'#94a3b8';
+  tipEl.innerHTML=`<div class="tz">${p.zh||p.en}</div>${p.zh&&p.en?`<div class="te">${p.en}</div>`:''}<span class="td" style="background:${c}22;color:${c}">${p.dept}</span>`;
+  tipEl.style.display='block'; moveTip(e);
+}
+function hideTip(){ tipEl.style.display='none'; }
+document.addEventListener('mousemove',e=>{if(tipEl.style.display==='block') moveTip(e);});
+function moveTip(e){ let x=e.clientX+12,y=e.clientY-6; if(x+210>window.innerWidth) x=e.clientX-214; if(y+80>window.innerHeight) y=e.clientY-80; tipEl.style.left=x+'px'; tipEl.style.top=y+'px'; }
+
+// ═══════════════════════════════════════════════════════════
+// LEGEND + BADGE + FILTER
+// ═══════════════════════════════════════════════════════════
+function buildLegend(){
+  const bar=document.getElementById('legbar');
+  bar.innerHTML='<span class="ll">部門：</span>';
+  const counts={};
+  Object.values(states[floor]).forEach(p=>{if(p) counts[p.dept]=(counts[p.dept]||0)+1;});
+  [{k:'全部',color:'#64748b'},...DEPTS.filter(d=>counts[d.k])].forEach(d=>{
+    const chip=document.createElement('div');
+    chip.className='lchip'+(filterDept===d.k||(d.k==='全部'&&filterDept==='all')?' on':'');
+    chip.innerHTML=`<span class="dot" style="background:${d.color}"></span>${d.k}${counts[d.k]?` <span class="n">${counts[d.k]}</span>`:''}`;
+    chip.onclick=()=>{filterDept=d.k==='全部'?'all':d.k; render();};
+    bar.appendChild(chip);
+  });
+}
+function updateBadge(){
+  const total=Object.values(states[floor]).filter(Boolean).length;
+  const empty=Object.values(states[floor]).filter(p=>p===null).length;
+  document.getElementById('bdg').textContent=`${total} 人　${empty} 空位`;
+}
+function applyFilter(){
+  document.querySelectorAll('.seat,.eslot').forEach(el=>{
+    const k=el.dataset.key,fl=el.dataset.fl;
+    if(fl!==floor){return;}
+    const p=states[fl][k];
+    if(!p){el.classList.remove('hl','dim');return;}
+    if(srchQ){const h=(p.zh+p.en+p.dept).toLowerCase(); el.classList.toggle('hl',h.includes(srchQ)); el.classList.toggle('dim',!h.includes(srchQ));}
+    else if(filterDept!=='all'){el.classList.toggle('hl',p.dept===filterDept); el.classList.toggle('dim',p.dept!==filterDept);}
+    else{el.classList.remove('hl','dim');}
+  });
+}
+function doSearch(v){srchQ=v.trim().toLowerCase(); applyFilter();}
+
+// ═══════════════════════════════════════════════════════════
+// EDIT MODAL
+// ═══════════════════════════════════════════════════════════
+function openEdit(key,fl,e){ e.stopPropagation(); e.preventDefault(); editKey=key; editFloor=fl; const p=states[fl][key]; document.querySelector('#editOv .modal h3').textContent=p?'✏️ 編輯座位':'➕ 新增人員'; document.getElementById('mZh').value=p?.zh||''; document.getElementById('mEn').value=p?.en||''; const dcs=document.getElementById('dcs'); dcs.innerHTML=''; DEPTS.forEach(d=>{const div=document.createElement('div'); div.className='dc'+(p?.dept===d.k?' sel':''); div.innerHTML=`<span class="dd" style="background:${d.color}"></span>${d.k}`; div.onclick=()=>{dcs.querySelectorAll('.dc').forEach(x=>x.classList.remove('sel')); div.classList.add('sel');}; dcs.appendChild(div);}); document.getElementById('editOv').classList.add('open'); }
+function closeModal(e){ if(e&&e.target!==document.getElementById('editOv'))return; document.getElementById('editOv').classList.remove('open'); editKey=null; }
+function saveModal(){ if(!editKey)return; const zh=document.getElementById('mZh').value.trim(),en=document.getElementById('mEn').value.trim(); const sel=document.getElementById('dcs').querySelector('.sel'); const dept=sel?.textContent.trim()||'未指定'; if(!zh&&!en){toast('⚠ 請填入姓名');return;} undoStack[editFloor].push(clone(editFloor)); states[editFloor][editKey]={zh,en,dept}; document.getElementById('editOv').classList.remove('open'); editKey=null; save(); render(); toast('✓ 已儲存'); }
+function clearSlot(){ if(!editKey||!confirm('確定清空？'))return; undoStack[editFloor].push(clone(editFloor)); states[editFloor][editKey]=null; document.getElementById('editOv').classList.remove('open'); editKey=null; save(); render(); toast('✓ 已清空'); }
+
+// ═══════════════════════════════════════════════════════════
+// FLOOR / UNDO / RESET / ZOOM
+// ═══════════════════════════════════════════════════════════
+function switchFloor(f,btn){ floor=f; document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('on')); btn.classList.add('on'); document.getElementById('srch').value=''; srchQ=''; filterDept='all'; render(); }
+function doUndo(){ const st=undoStack[floor]; if(!st.length)return; states[floor]=st.pop(); save(); render(); toast('↩ 復原'); }
+function doReset(){ if(!confirm(`還原 ${floor} 到原始座位表？`))return; if(pinnedSlots[floor]) pinnedSlots[floor].clear(); undoStack[floor].push(clone(floor)); initStates(); save(); render(); toast('⟳ 重置完成'); }
+function setZoom(v){ zoom=+v; document.getElementById('zl').textContent=v+'%'; document.getElementById('wrap').style.transform=`scale(${v/100})`; }
+
+// ═══════════════════════════════════════════════════════════
+// STORAGE + KEYBOARD
+// ═══════════════════════════════════════════════════════════
+let toastT;
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2200); }
+function save(){ try{localStorage.setItem('aocc_v46',JSON.stringify(states));}catch(e){} }
+function load(){ try{const s=localStorage.getItem('aocc_v46'); if(s) states=JSON.parse(s);}catch(e){} }
+document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!document.getElementById('editOv').classList.contains('open')){e.preventDefault();doUndo();} if(e.key==='Escape')document.getElementById('editOv').classList.remove('open'); });
+
+initStates(); load(); render(); setZoom(zoom);
+setInterval(save,15000); window.addEventListener('beforeunload',save);
+</script>
+</body>
+</html>
