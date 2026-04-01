@@ -691,7 +691,9 @@ async function saveToGitHub(){
   const btn=document.getElementById('cloudBtn');
   btn.textContent='⏳…'; btn.disabled=true;
   try{
-    const getRes=await fetch(GH_API+'?ref='+GH_BRANCH,{headers:{Authorization:'token '+token,Accept:'application/vnd.github+json'}});
+    const getRes=await fetch(GH_API+'?ref='+GH_BRANCH+'&t='+Date.now(),{
+      headers:{Authorization:'token '+token,Accept:'application/vnd.github+json','Cache-Control':'no-cache'}
+    });
     let sha='';
     if(getRes.ok){ const d=await getRes.json(); sha=d.sha||''; }
     const payload={states,pinnedSlots:{'6F':[...pinnedSlots['6F']],'4F':[...pinnedSlots['4F']],'10F':[...pinnedSlots['10F']]},savedAt:new Date().toISOString()};
