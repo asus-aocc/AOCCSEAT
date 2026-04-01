@@ -620,21 +620,51 @@ const _vowner = window.location.hostname.includes('github.io')
 const GH_RAW = 'https://raw.githubusercontent.com/'+_vowner+'/AOCCSEAT/main/seats-data.json';
 
 async function loadFromGitHub(){
-  try {
-    const res = await fetch(GH_RAW + '?t=' + Date.now());
-    if(!res.ok) return false;
-    const data = await res.json();
-    if(data && data.states){
-      states = data.states;
-      if(data.pinnedSlots){
-        pinnedSlots['6F'] = new Set(data.pinnedSlots['6F']||[]);
-        pinnedSlots['4F'] = new Set(data.pinnedSlots['4F']||[]);
-        pinnedSlots['10F'] = new Set(data.pinnedSlots['10F']||[]);
+  try{
+    // Try to find gist ID: first from repo file, then localStorage
+    const owner = window.location.hostname.replace('.github.io','') || 'asus-aocc';
+    let gistId = null;
+
+    // Try repo file first
+    try{
+      const idRes = await fetch('https://raw.githubusercontent.com/'+owner+'/AOCCSEAT/main/gist-id.txt?t='+Date.now());
+      if(idRes.ok) gistId = (await idRes.text()).trim();
+    } catch(e){}
+
+    // Fallback to localStorage (same browser as editor)
+    if(!gistId) gistId = localStorage.getItem('aocc_gist_id') || localStorage.getItem('aocc_gist_public');
+
+    if(gistId){
+      const gistRes = await fetch('https://api.github.com/gists/'+gistId+'?t='+Date.now());
+      if(gistRes.ok){
+        const gistData = await gistRes.json();
+        const content = gistData.files['aocc-seats.json']?.content;
+        if(content){
+          const data = JSON.parse(content);
+          if(data && data.states){
+            states = data.states;
+            if(data.pinnedSlots){
+              pinnedSlots['6F'] = new Set(data.pinnedSlots['6F']||[]);
+              pinnedSlots['4F'] = new Set(data.pinnedSlots['4F']||[]);
+              pinnedSlots['10F'] = new Set(data.pinnedSlots['10F']||[]);
+            }
+            return {ok:true, savedAt:data.savedAt};
+          }
+        }
       }
-      return true;
     }
-  } catch(e){ console.warn('GitHub load failed:', e); }
-  return false;
+
+    // Final fallback: try raw GitHub file
+    const rawRes = await fetch(GH_RAW+'?t='+Date.now());
+    if(rawRes.ok){
+      const data = await rawRes.json();
+      if(data && data.states){
+        states = data.states;
+        return {ok:true, savedAt:data.savedAt};
+      }
+    }
+  } catch(e){ console.warn('Load failed:', e); }
+  return {ok:false};
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -645,12 +675,13 @@ const savedAt = document.createElement('div');
 savedAt.style.cssText = 'position:fixed;bottom:10px;right:14px;font-size:10px;color:#94a3b8;z-index:999;';
 document.body.appendChild(savedAt);
 
-loadFromGitHub().then(ok => {
+loadFromGitHub().then(result => {
+  const ok=result&&result.ok;
   if(ok){
     // Try to show saved time from data
     const raw = fetch(GH_RAW+'?t='+Date.now())
       .then(r=>r.json())
-      .then(d=>{ if(d.savedAt) savedAt.textContent='資料更新：'+new Date(d.savedAt).toLocaleString('zh-TW'); })
+      .then(d=>{ if(result.savedAt) savedAt.textContent='資料更新：'+new Date(result.savedAt).toLocaleString('zh-TW'); })
       .catch(()=>{});
   } else {
     savedAt.textContent = '⚠ 無法讀取雲端資料，顯示預設版本';

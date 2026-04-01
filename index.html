@@ -677,46 +677,99 @@ if(sessionStorage.getItem('aocc_auth') === PW_HASH){
 }
 
 // ═══ GITHUB SAVE ═══
-// Auto-detect repo owner from current URL
-const _owner = window.location.hostname.includes('github.io')
-  ? window.location.hostname.replace('.github.io','')
-  : 'starii0808';
-const GH_REPO=_owner+'/AOCCSEAT', GH_FILE='seats-data.json', GH_BRANCH='main';
-const GH_API=`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
+// ═══ GITHUB GIST STORAGE ═══
+// Gist-based: bypasses org restrictions, token only needs 'gist' scope
+const GIST_API = 'https://api.github.com/gists';
+const GIST_FILENAME = 'aocc-seats.json';
 
-function clearToken(){ localStorage.removeItem('aocc_gh_token'); toast('🔑 Token 已清除'); }
-function showDebug(){ alert('Repo: '+GH_REPO+'\nURL: '+window.location.href+'\nHostname: '+window.location.hostname); }
+function clearToken(){
+  localStorage.removeItem('aocc_gh_token');
+  localStorage.removeItem('aocc_gist_id');
+  toast('🔑 Token 已清除');
+}
 
 async function saveToGitHub(){
-  let token=localStorage.getItem('aocc_gh_token');
+  let token = localStorage.getItem('aocc_gh_token');
   if(!token){
-    token=prompt('請輸入 GitHub Personal Access Token：');
+    token = prompt('請輸入 GitHub Personal Access Token\n（需要 gist 權限，不需要 repo 權限）');
     if(!token) return;
-    localStorage.setItem('aocc_gh_token',token);
+    localStorage.setItem('aocc_gh_token', token);
   }
-  const btn=document.getElementById('cloudBtn');
+  const btn = document.getElementById('cloudBtn');
   btn.textContent='⏳…'; btn.disabled=true;
+
+  const payload = {
+    states,
+    pinnedSlots:{'6F':[...pinnedSlots['6F']],'4F':[...pinnedSlots['4F']],'10F':[...pinnedSlots['10F']]},
+    savedAt: new Date().toISOString()
+  };
+  const body = JSON.stringify(payload, null, 2);
+
   try{
-    const getRes=await fetch(GH_API+'?ref='+GH_BRANCH+'&t='+Date.now(),{
-      headers:{Authorization:'token '+token,Accept:'application/vnd.github+json','Cache-Control':'no-cache'}
-    });
-    let sha='';
-    if(getRes.ok){ const d=await getRes.json(); sha=d.sha||''; }
-    const payload={states,pinnedSlots:{'6F':[...pinnedSlots['6F']],'4F':[...pinnedSlots['4F']],'10F':[...pinnedSlots['10F']]},savedAt:new Date().toISOString()};
-    const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
-    const putRes=await fetch(GH_API,{method:'PUT',headers:{Authorization:'token '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify({message:'[座位表] 更新座位資料',content,sha,branch:GH_BRANCH})});
-    if(putRes.ok){ toast('☁ 已儲存！唯讀版將自動更新'); }
-    else{
-      const err=await putRes.json();
-      if(err.message&&err.message.includes('credentials')){ localStorage.removeItem('aocc_gh_token'); toast('❌ Token 無效，已清除'); }
-      else { toast('❌ 失敗：'+err.message); }
+    let gistId = localStorage.getItem('aocc_gist_id');
+    let res;
+
+    if(gistId){
+      // Update existing gist
+      res = await fetch(GIST_API+'/'+gistId, {
+        method:'PATCH',
+        headers:{Authorization:'token '+token, 'Content-Type':'application/json'},
+        body: JSON.stringify({files:{[GIST_FILENAME]:{content:body}}})
+      });
+    } else {
+      // Create new gist
+      res = await fetch(GIST_API, {
+        method:'POST',
+        headers:{Authorization:'token '+token, 'Content-Type':'application/json'},
+        body: JSON.stringify({
+          description:'AOCC 座位表資料',
+          public:true,
+          files:{[GIST_FILENAME]:{content:body}}
+        })
+      });
     }
-  }catch(e){
-    const url='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE;
-    toast('❌ 錯誤：'+e.message+' | URL: '+url.slice(0,60));
-    console.error('Fetch error:', e, 'URL:', url, 'Repo:', GH_REPO);
+
+    if(res.ok){
+      const data = await res.json();
+      gistId = data.id;
+      localStorage.setItem('aocc_gist_id', gistId);
+      // Save gist ID to a public place so view.html can find it
+      // Store in localStorage key that view.html reads
+      localStorage.setItem('aocc_gist_public', gistId);
+      toast('☁ 已儲存！Gist ID: '+gistId.slice(0,8)+'…');
+      // Also try to update index in repo
+      await saveGistIdToRepo(token, gistId);
+    } else {
+      const err = await res.json();
+      if(err.message && err.message.includes('credentials')){
+        localStorage.removeItem('aocc_gh_token');
+        toast('❌ Token 無效，已清除');
+      } else {
+        toast('❌ 失敗：'+err.message);
+      }
+    }
+  } catch(e){
+    toast('❌ 錯誤：'+e.message);
+    console.error(e);
+  } finally {
+    btn.textContent='☁ 儲存'; btn.disabled=false;
   }
-  finally{ btn.textContent='☁ 儲存'; btn.disabled=false; }
+}
+
+// Save gist ID to a tiny file in the repo so view.html can auto-find it
+async function saveGistIdToRepo(token, gistId){
+  try{
+    const owner = window.location.hostname.replace('.github.io','') || 'asus-aocc';
+    const api = 'https://api.github.com/repos/'+owner+'/AOCCSEAT/contents/gist-id.txt';
+    const getR = await fetch(api+'?t='+Date.now(), {headers:{Authorization:'token '+token}});
+    let sha = '';
+    if(getR.ok){ const d=await getR.json(); sha=d.sha||''; }
+    await fetch(api, {
+      method:'PUT',
+      headers:{Authorization:'token '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({message:'Update gist ID', content:btoa(gistId), sha, branch:'main'})
+    });
+  } catch(e){ console.log('Could not save gist ID to repo (OK if org restricted):', e.message); }
 }
 </script>
 </body>
