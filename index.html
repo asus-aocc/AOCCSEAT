@@ -735,7 +735,8 @@ async function saveToGitHub(){
       gistId = data.id;
       localStorage.setItem('aocc_gist_id', gistId);
       localStorage.setItem('aocc_gist_public', gistId);
-      if(isFirstSave){
+      if(isFirstSave && !sessionStorage.getItem('aocc_view_downloaded')){
+        sessionStorage.setItem('aocc_view_downloaded', '1');
         toast('☁ 已儲存！正在產生 view.html…');
         await generateAndDownloadView(gistId);
       } else {
